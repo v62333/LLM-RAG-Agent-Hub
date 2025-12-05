@@ -100,6 +100,47 @@
     - 回傳整合後的分析報告與建議。
 
 ---
+並安裝套件：
+
+```bash
+pip install -r requirements.txt
+複製環境設定檔：
+
+bash
+複製程式碼
+cp .env.example .env
+# 如要使用本地 Qwen2.5 + Ollama，保持 LLM_BACKEND=local
+# 如要改用雲端 LLM，調整 LLM_BACKEND、LLM_API_BASE、LLM_API_KEY 等設定
+啟動 Milvus
+
+建議使用 docker-compose（可依官方教學啟動 Milvus / Attu）
+
+.env 內的 MILVUS_HOST、MILVUS_PORT 需與實際設定一致
+
+啟動本地 LLM（選用，本專案預設支援 Qwen2.5 via Ollama）：
+
+bash
+複製程式碼
+ollama pull qwen2.5:7b
+ollama serve
+啟動 FastAPI：
+
+bash
+複製程式碼
+uvicorn app.main:app --reload
+# 或指定埠：
+# uvicorn app.main:app --reload --port 8001
+測試健康檢查：
+
+bash
+複製程式碼
+curl http://localhost:8000/health/
+或在瀏覽器開啟：
+
+http://localhost:8000/docs 查看自動生成的 Swagger 介面
+
+
+
 Copyright (c) 2025 Li Wei
 
 All rights reserved.

@@ -1,3 +1,82 @@
+LLM-RAG-Agent-Hub/
+├── app/
+│   ├── main.py                   # FastAPI 啟動入口
+│   ├── api/
+│   │   ├── __init__.py
+│   │   ├── routes_health.py      # /health
+│   │   ├── routes_prompt.py      # /prompt
+│   │   ├── routes_embed.py       # /embed
+│   │   ├── routes_ingest.py      # /ingest/docs
+│   │   ├── routes_rag.py         # /rag/ask, /rag/graph_ask
+│   │   ├── routes_agent.py       # /agent/run
+│   │   └── routes_recommend.py   # /recommend/news
+│   │
+│   ├── core/
+│   │   ├── __init__.py
+│   │   ├── config.py             # 設定讀取（含 .env）
+│   │   ├── logging.py            # logging 設定
+│   │   └── errors.py             # 自訂例外與錯誤回傳格式
+│   │
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── schemas.py            # Pydantic Request/Response model
+│   │   └── enums.py              # 一些列舉（Domain, CollectionName 等）
+│   │
+│   ├── llm/
+│   │   ├── __init__.py
+│   │   ├── llm_client.py         # LLMClient interface + OpenAIClient
+│   │   ├── local_llm_client.py   # Local LLaMA client（可先放 stub）
+│   │   └── prompt_templates/
+│   │       ├── __init__.py
+│   │       ├── finance_prompt.txt
+│   │       ├── ads_prompt.txt
+│   │       └── general_prompt.txt
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── prompt_service.py      # 預設 system prompt, domain 切換
+│   │   ├── ingest_service.py      # 文件前處理 + chunk + embedding + 寫入 Milvus
+│   │   ├── rag_service.py         # 標準 RAG 流程
+│   │   ├── graph_rag_service.py   # 簡化版 GraphRAG
+│   │   ├── recommend_service.py   # 新聞推薦
+│   │   └── agent_service.py       # Agent 定義 + Orchestrator
+│   │
+│   ├── vectorstore/
+│   │   ├── __init__.py
+│   │   └── milvus_client.py       # 連線、建 collection、search/insert
+│   │
+│   ├── embeddings/
+│   │   ├── __init__.py
+│   │   └── embedding_client.py    # BGE / sentence-transformers 封裝
+│   │
+│   ├── storage/
+│   │   ├── __init__.py
+│   │   └── file_storage.py        # 檔案讀寫 helper（docs/news/ads）
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── text_cleaning.py       # 文件清洗工具
+│       └── chunking.py            # chunk 策略與實作
+│
+├── data/
+│   ├── docs/                      # 金融 / 理財 / 策略交易文件（PDF/Word/HTML/MD）
+│   ├── news/                      # 金融新聞假資料 CSV / JSON
+│   └── ads/                       # 廣告成效 CSV
+│
+├── tests/
+│   ├── __init__.py
+│   ├── test_rag_flow.py
+│   ├── test_agent_flow.py
+│   └── test_recommend_api.py
+│
+├── docker-compose.yml             # Milvus + app + （選擇性）Attu
+├── Dockerfile                     # app 容器
+├── requirements.txt               # 或改用 pyproject.toml
+├── .env.example                   # 環境變數範例
+├── README.md
+└── .gitignore
+
+
 # LLM-RAG-Agent-Hub
 這是一個為了展示「**LLM + RAG + Milvus + Multi-Agent + FastAPI** 端到端能力」而設計的概念驗證專案
 專案目前包含三個主要場景：
@@ -98,7 +177,21 @@
   - 用途：觸發多 Agent 流程：
     - `DataAgent` → `AnalysisAgent` → `AdOptimizationAgent`
     - 回傳整合後的分析報告與建議。
+   
+    - 
+## 🛠️ 環境需求
 
+* Python 3.10+
+* Docker (用於啟動 Milvus / Attu)
+* (選用) Ollama 或其他本地 LLM 服務
+
+---
+
+## 🚀 快速開始 (Local Demo)
+
+> ⚠️ 下列步驟是示範用開發流程，實際環境請依系統調整。
+
+建立虛擬環境並安裝套件：
 ---
 並安裝套件：
 

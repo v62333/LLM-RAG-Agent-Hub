@@ -11,7 +11,7 @@
    - 使用假資料新聞集（title / content / tags / published_at）
    - 依照使用者偏好與最近查詢內容做向量相似度搜尋
    - 透過 `/recommend/news` 回傳 Top-K 推薦
-3. **多 Agent 廣告成效分析與優化建議**
+3. **多 Agent 數據成效分析與優化建議**
    - 以示範用廣告投放成效資料（CSV）為輸入
    - `DataAgent`：讀取 / 清洗 / 聚合數據（pandas）
    - `AnalysisAgent`：生成表現摘要與 insight
@@ -32,7 +32,7 @@
     - `/ingest/docs`：文件前處理與寫入 Milvus
     - `/rag/ask`、`/rag/graph_ask`：RAG / 簡化版 GraphRAG 問答
     - `/recommend/news`：新聞推薦
-    - `/agent/run`：多 Agent 廣告分析流程
+    - `/agent/run`：多 Agent 數據分析流程
 
 - **Service 層（`app/services`）**
   - `prompt_service`：管理不同 domain（金融 / 廣告 / 一般）對應的 system prompt 與模板
@@ -52,7 +52,7 @@
 
 資料流程（以金融 RAG 問答為例）：
 
-1. 使用 `/ingest/docs` 上傳或指定文件來源（PDF / HTML / Word / Markdown）
+1. 使用 `/ingest/docs` 上傳或指定文件來源（ HTML / Markdown）
 2. `ingest_service`：
    - 解析文本、清洗噪音
    - 依設定做 chunking（含 overlap）

@@ -1,6 +1,6 @@
 
 # LLM-RAG-Agent-Hub
-這是一個為了展示「**LLM + RAG + Milvus + Multi-Agent + FastAPI** 端到端能力」而設計的概念驗證專案
+這是一個為了展示「**LLM + RAG + Milvus + Agent + FastAPI** 端到端能力」而設計的概念驗證專案
 專案目前包含三個主要場景：
 
 1. **金融知識 RAG 問答**

@@ -208,9 +208,30 @@ class OptimizationAgent(BaseAgent):
     ) -> QualityEvaluation:
 
         eval_prompt = (
-            "請評分 0-100。\n"
-            "回傳 JSON: {\"score\": int, \"critique\": str}\n\n"
-            f"{generated_content}"
+            "### 任務描述\n"
+            "你是一位嚴格的廣告成效稽核員。請對照「原始分析資料」評核「生成的建議」，並嚴格執行以下計分權重：\n\n"
+            
+            "### 評分標準 (總分 100):\n"
+            "1. **事實忠實度 (50%)**: \n"
+            "   - 內容必須完全根據原始分析。每出現一個原始資料未提及的數據或虛構事實，扣 20 分。\n"
+            "   - 若關鍵事實錯誤，此項直接計 0 分。\n"
+            "2. **執行具體性 (30%)**: \n"
+            "   - 必須包含「目標對象、行動方案、預期成效」。缺一項扣 10 分。\n"
+            "3. **邏輯連貫性 (20%)**: \n"
+            "   - 建議是否能解決原始分析中提到的問題？邏輯鬆散或空洞扣 10-20 分。\n\n"
+
+            "### 輸入內容\n"
+            f"[原始分析資料]: {analysis_source}\n"
+            f"[待評核建議]: {generated_content}\n\n"
+
+            "### 輸出要求\n"
+            "請先在心中進行推理，最後僅回傳 JSON 格式：\n"
+            "{\n"
+            "  \"score\": <int>,\n"
+            "  \"breakdown\": {\"faithfulness\": int, \"concreteness\": int, \"logic\": int},\n"
+            "  \"critique\": \"<簡短精確的扣分原因>\",\n"
+            "  \"hallucination_detected\": <bool>\n"
+            "}"
         )
 
         try:

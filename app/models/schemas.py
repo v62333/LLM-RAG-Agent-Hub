@@ -1,6 +1,8 @@
 from typing import List, Optional, Any
 from pydantic import BaseModel
 from .enums import Domain, CollectionName
+from pydantic import BaseModel, Field, field_validator, ValidationError
+from typing import List
 
 
 class HealthResponse(BaseModel):
@@ -98,6 +100,23 @@ class AgentTaskRequest(BaseModel):
     date_start: Optional[str] = None
     date_end: Optional[str] = None
 
+    @field_validator('task')
+    @classmethod
+    def check_task_not_empty(cls, v: str):
+        # 去除前後空白後，檢查是否為空
+        if not v.strip():
+            raise ValueError("任務內容 (task) 不能為空或僅包含空白")
+        return v
+    
+    # (選用) 如果您希望當前端傳送 "" (空字串) 作為日期時，自動轉成 None，可以加這段
+    # 這樣 DataAgent 裡的 `if date_start:` 判斷會更準確
+    @field_validator('date_start', 'date_end')
+    @classmethod
+    def empty_string_to_none(cls, v: Optional[str]):
+        if v is not None and not v.strip():
+            return None
+        return v
+
 
 class AgentStepResult(BaseModel):
     name: str
@@ -110,3 +129,33 @@ class AgentRunResponse(BaseModel):
     analysis_insights: str
     optimization_suggestions: str
     steps: List[AgentStepResult]
+
+class OptimizationItem(BaseModel):
+    """
+    單一優化建議的結構限制
+    """
+    target: str = Field(
+        ..., 
+        description="目標對象，例如 'Campaign A' 或 '25-34歲男性'", 
+        min_length=2
+    )
+    action: str = Field(
+        ..., 
+        description="具體行動方案，必須包含動作與數值調整", 
+        min_length=5
+    )
+    outcome: str = Field(
+        ..., 
+        description="預期成效，需包含指標名稱", 
+        min_length=2
+    )
+
+    @field_validator('target', 'action', 'outcome')
+    @classmethod
+    def check_not_empty_or_meaningless(cls, v: str):
+        v = v.strip()
+        invalid_keywords = ["無", "n/a", "未知", "none", "unknown"]
+        
+        if v.lower() in invalid_keywords:
+            raise ValueError(f"欄位內容無效: '{v}'，請提供具體建議")
+        return v

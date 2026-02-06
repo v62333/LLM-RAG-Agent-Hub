@@ -16,7 +16,7 @@
    
    - AnalysisAgent：利用 LLM 提取數據洞察，最好與最壞的數據並解說。
    
-   - AdOptimizationAgent：根據規則產生優化建議，具備 Self-Correction 機制。透過 Pydantic 進行輸出結構化驗證，若格式不符將自動觸發 Feedback Loop 重試，確保 100% 產出高品質、可程式化執行的建議。
+   - AdOptimizationAgent：負責根據數據洞察生成行動方案，並內建 Self-Correction 自我修正機制。透過 Pydantic 實施嚴格的結構化校驗，若輸出未達標準則自動觸發 Feedback Loop 修正重試，確保決策建議具備 100% 的格式與內容合規率。
    - 由 Orchestrator 透過 `/agent/run` 串成端到端流程
 
 ---

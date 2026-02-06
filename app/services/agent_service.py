@@ -124,11 +124,11 @@ class AnalysisAgent(BaseAgent):
 
 
 # =========================
-# AdOptimizationAgent
+# OptimizationAgent
 # =========================
 
-class AdOptimizationAgent(BaseAgent):
-    name = "AdOptimizationAgent"
+class OptimizationAgent(BaseAgent):
+    name = "OptimizationAgent"
 
     async def run(self, **kwargs) -> Dict[str, Any]:
         client = get_llm_client()
@@ -293,7 +293,7 @@ class AgentOrchestrator:
     def __init__(self):
         self.data_agent = DataAgent()
         self.analysis_agent = AnalysisAgent()
-        self.opt_agent = AdOptimizationAgent()
+        self.opt_agent = OptimizationAgent()
 
     async def run_flow(
         self,

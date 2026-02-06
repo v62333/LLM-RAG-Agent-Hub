@@ -12,10 +12,11 @@
    - 依照使用者偏好與最近查詢內容做向量相似度搜尋
    - 透過 `/recommend/news` 回傳 Top-K 推薦
 3. **多 Agent 數據成效分析與優化建議**
-   - 以示範用廣告投放成效資料（CSV）為輸入
-   - `DataAgent`：讀取 / 清洗 / 聚合數據（pandas）
-   - `AnalysisAgent`：生成表現摘要與 insight
-   - `AdOptimizationAgent`：根據規則產生優化建議
+   - DataAgent：數據預處理與指標運算（Pandas），具備輸入參數合法性校驗，阻絕無效任務。
+   
+   - AnalysisAgent：利用 LLM 提取數據洞察，最好與最壞的數據並解說。
+   
+   - AdOptimizationAgent：根據規則產生優化建議，具備 Self-Correction 機制。透過 Pydantic 進行輸出結構化驗證，若格式不符將自動觸發 Feedback Loop 重試，確保 100% 產出高品質、可程式化執行的建議。
    - 由 Orchestrator 透過 `/agent/run` 串成端到端流程
 
 ---

@@ -8,7 +8,7 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-class LLMClient(ABC):
+class LLMClient(ABC):    #指定所有LLM的規格書
     @abstractmethod
     async def generate(
         self,

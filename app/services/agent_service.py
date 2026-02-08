@@ -11,7 +11,8 @@ from app.models.schemas import (
     AgentRunResponse,
     AgentStepResult,
     OptimizationItem,
-    AgentTaskRequest
+    AgentTaskRequest,
+    QualityEvaluation  # <--- 必須補上這個！
 )
 from app.storage.file_storage import get_storage
 from app.llm.llm_client import get_llm_client
@@ -22,11 +23,6 @@ logger = logging.getLogger(__name__)
 # =========================
 # Models
 # =========================
-
-class QualityEvaluation(BaseModel):
-    score: int = Field(description="0-100 的評分")
-    critique: str = Field(description="具體改進建議")
-    passed: bool = Field(description="是否通過標準 (>=80)")
 
 
 class BaseAgent(ABC):
@@ -308,7 +304,6 @@ class OptimizationAgent(BaseAgent):
 # =========================
 # Orchestrator
 # =========================
-
 class AgentOrchestrator:
 
     def __init__(self):
@@ -325,6 +320,7 @@ class AgentOrchestrator:
 
         steps: List[AgentStepResult] = []
 
+        # 1. Data Agent
         data_result = await self.data_agent.run(
             task=task,
             date_start=date_start,
@@ -345,8 +341,10 @@ class AgentOrchestrator:
                 analysis_insights="",
                 optimization_suggestions="",
                 steps=steps,
+                verified=False  # 記得補上這行，保持一致性
             )
 
+        # 2. Analysis Agent
         analysis_result = await self.analysis_agent.run(
             data_summary=data_result.get("summary")
         )
@@ -359,6 +357,7 @@ class AgentOrchestrator:
             )
         )
 
+        # 3. Optimization Agent
         opt_result = await self.opt_agent.run(
             analysis=analysis_result.get("analysis")
         )
@@ -371,11 +370,16 @@ class AgentOrchestrator:
             )
         )
 
+        # 4. 回傳結果 (包含失敗與成功狀況)
         if not opt_result.get("verified"):
             return AgentRunResponse(
                 data_summary=data_result.get("summary"),
                 analysis_insights=analysis_result.get("analysis"),
                 optimization_suggestions="優化建議生成失敗",
+                # 即使失敗，也回傳評分細節
+                structured_suggestions=[],
+                quality_evaluation=opt_result.get("evaluation", {}),
+                verified=False,
                 steps=steps,
             )
 
@@ -383,6 +387,13 @@ class AgentOrchestrator:
             data_summary=data_result.get("summary"),
             analysis_insights=analysis_result.get("analysis"),
             optimization_suggestions=opt_result.get("suggestions"),
+            
+            # --- 新增欄位傳遞 ---
+            structured_suggestions=opt_result.get("structured_data", []),
+            quality_evaluation=opt_result.get("evaluation", {}),
+            verified=True,
+            # ------------------
+            
             steps=steps,
         )
 

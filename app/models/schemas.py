@@ -1,4 +1,4 @@
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from pydantic import BaseModel
 from .enums import Domain, CollectionName
 from pydantic import BaseModel, Field, field_validator, ValidationError
@@ -123,11 +123,23 @@ class AgentStepResult(BaseModel):
     summary: str
     raw_output: Optional[Any] = None
 
+class QualityEvaluation(BaseModel):
+    score: int = Field(description="0-100 的評分")
+    critique: str = Field(description="具體改進建議")
+    passed: bool = Field(description="是否通過標準")
+
 
 class AgentRunResponse(BaseModel):
     data_summary: str
     analysis_insights: str
     optimization_suggestions: str
+    
+    # --- 新增以下欄位 ---
+    structured_suggestions: List[OptimizationItem] = []  # 結構化的建議物件
+    quality_evaluation: Optional[Dict[str, Any]] = None  # 評分結果
+    verified: bool = True                                # 整體流程是否驗證通過
+    # --------------------
+
     steps: List[AgentStepResult]
 
 class OptimizationItem(BaseModel):

@@ -112,50 +112,60 @@
 
 ---
 
-## 🚀 快速開始 (Local Demo)
+🚀 快速開始 (Quick Start)
+請按照以下步驟在本地環境啟動專案：
 
-> ⚠️ 下列步驟是示範用開發流程，實際環境請依系統調整。
+1. 環境配置
+建立虛擬環境並安裝所有依賴套件（包含新增的 elasticsearch）：
 
-建立虛擬環境並安裝套件：
----
-並安裝套件：
+Bash
+# 建立虛擬環境
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+# venv\Scripts\activate  # Windows
 
-```bash
+# 安裝依賴
 pip install -r requirements.txt
-複製環境設定檔：
+2. 設定環境變數
+複製範例檔並根據您的環境調整設定（務必檢查 ES 與 Milvus 的連線資訊）：
 
-bash
-複製程式碼
+Bash
 cp .env.example .env
-# 如要使用本地 Qwen2.5 + Ollama，保持 LLM_BACKEND=local
-# 如要改用雲端 LLM，調整 LLM_BACKEND、LLM_API_BASE、LLM_API_KEY 等設定
-啟動 Milvus
+💡 提示： 請確保 .env 中的 ES_HOST、ES_INDEX_PREFIX 與 MILVUS_HOST 設定正確。
 
-建議使用 docker-compose（可依官方教學啟動 Milvus / Attu）
+3. 啟動基礎設施 (Infrastructure)
+本專案依賴 Milvus (向量庫) 與 Elasticsearch (全文索引)。
 
-.env 內的 MILVUS_HOST、MILVUS_PORT 需與實際設定一致
+啟動 Milvus：建議使用 docker-compose 啟動。
 
-啟動本地 LLM（選用，本專案預設支援 Qwen2.5 via Ollama）：
+啟動 Elasticsearch：
 
-bash
-複製程式碼
+確保 ES 服務運行於 http://localhost:9200。
+
+Docker 快速啟動指令：
+
+Bash
+docker run -d --name elasticsearch -p 9200:9200 -e "discovery.type=single-node" -e "xpack.security.enabled=false" docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+4. 啟動 LLM 服務 (選用)
+本專案預設支援 Qwen2.5 via Ollama。若使用雲端模型請跳過此步並修改 .env 中的 LLM_BACKEND=cloud。
+
+Bash
 ollama pull qwen2.5:7b
 ollama serve
-啟動 FastAPI：
-
-bash
-複製程式碼
+5. 啟動 FastAPI 伺服器
+Bash
 uvicorn app.main:app --reload
-# 或指定埠：
-# uvicorn app.main:app --reload --port 8001
-測試健康檢查：
+6. 驗證服務狀態
+您可以透過以下方式確認服務是否正常運行：
 
-bash
-複製程式碼
-curl http://localhost:8000/health/
-或在瀏覽器開啟：
+健康檢查：訪問 http://localhost:8000/health。
 
-http://localhost:8000/docs 查看自動生成的 Swagger 介面
+互動式 API 文檔：開啟瀏覽器進入 http://localhost:8000/docs (Swagger UI)。
+
+🛠️ 開發提示 (Dev Tips)
+資料同步寫入：當您呼叫 /ingest/docs 時，系統會自動完成「向量化並寫入 Milvus」以及「全文索引並寫入 Elasticsearch」的同步操作。
+
+切換檢索模式：在 /rag/ask 的 Request Body 中切換 "use_hybrid": true 即可啟用 RRF 混合檢索。
 
 
 

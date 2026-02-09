@@ -1,14 +1,21 @@
+# Web 框架與環境設定
 fastapi
 uvicorn[standard]
-pydantic>=1.10
+pydantic>=2.0.0          
 pydantic-settings
 python-dotenv
 requests
 
-sentence-transformers
-torch
+# Elasticsearch (混合檢索關鍵)
+elasticsearch>=8.0.0     #
 
+# AI 運算與 Embedding
+sentence-transformers
+torch                    
+
+# 向量資料庫
 pymilvus>=2.3.0
 
+# 數據處理
 pandas
 numpy

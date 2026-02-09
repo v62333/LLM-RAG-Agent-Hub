@@ -172,12 +172,16 @@ Real LLM 模式 (硬體邊界分析)：
 
 ### 1. 架構穩定性驗證 (Mock LLM 模式)
 在隔離模型運算開銷後，觀察檢索層與 API 框架的併發表現。
-![Mock LLM Performance](./assets/假LLM.png)
+<img width="1600" height="600" alt="Mock LLM" src="https://github.com/user-attachments/assets/3172ca1b-f44f-4b27-add0-4c4d420a9272" />
+<img width="1600" height="600" alt="Mock LLM" src="https://github.com/user-attachments/assets/3172ca1b-f44f-4b27-add0-4c4d420a9272" />
+
 系統展現高度的可擴展性 (Scalability)，TPS 隨併發數線性成長。Hybrid Search 在高併發 (Conc > 20) 時開始顯現 RRF 排序帶來的運算成本。
 
 ### 2. 真實環境極限測試 (Qwen-0.5B CPU 推論)
 驗證單機 CPU 在真實矩陣運算下的負載上限。
-![Real LLM Performance](./assets/千問0.5.png)
+<img width="1600" height="600" alt="千問0 5" src="https://github.com/user-attachments/assets/b183db0d-1a10-4afe-bb26-f12ac2e525c3" />
+<img width="1600" height="600" alt="千問0 5" src="https://github.com/user-attachments/assets/b183db0d-1a10-4afe-bb26-f12ac2e525c3" />
+
 系統進入 CPU 飽和區，出現明顯的「計算牆」。延遲受生成 Token 長度影響呈現隨機抖動，TPS 達到物理上限。
 
 

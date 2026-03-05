@@ -5,14 +5,14 @@ import pandas as pd
 import re
 import json
 
-from pydantic import ValidationError, BaseModel, Field
+from pydantic import ValidationError
 
 from app.models.schemas import (
     AgentRunResponse,
     AgentStepResult,
     OptimizationItem,
     AgentTaskRequest,
-    QualityEvaluation  # <--- 必須補上這個！
+    QualityEvaluation
 )
 from app.storage.file_storage import get_storage
 from app.llm.llm_client import get_llm_client
@@ -21,9 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 # =========================
-# Models
+# BaseAgent
 # =========================
-
 
 class BaseAgent(ABC):
     name: str
@@ -52,7 +51,6 @@ class DataAgent(BaseAgent):
             csv_path = storage.get_ads_csv_path()
             df = pd.read_csv(csv_path)
 
-            # 日期轉換
             df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
             if req.date_start:
@@ -60,7 +58,6 @@ class DataAgent(BaseAgent):
             if req.date_end:
                 df = df[df["date"] <= pd.to_datetime(req.date_end)]
 
-            # 先 groupby 加總
             agg = (
                 df.groupby("campaign_name")
                 .agg(
@@ -72,7 +69,6 @@ class DataAgent(BaseAgent):
                 .reset_index()
             )
 
-            # 再計算比例
             agg["ctr"] = agg["clicks"] / agg["impressions"].clip(lower=1)
             agg["cpc"] = agg["spend"] / agg["clicks"].clip(lower=1)
             agg["cpa"] = agg["spend"] / agg["conversions"].clip(lower=1)
@@ -128,7 +124,10 @@ class OptimizationAgent(BaseAgent):
 
     async def run(self, **kwargs) -> Dict[str, Any]:
         client = get_llm_client()
+
         analysis_text = kwargs.get("analysis", "")
+        # 🟢 融合版保留：正確接住來自 Orchestrator 的 data_summary
+        data_summary = kwargs.get("data_summary", "")  
 
         sys_prompt = (
             "你是一位資深成效型廣告優化專家。\n"
@@ -167,8 +166,10 @@ class OptimizationAgent(BaseAgent):
                     last_error_hint = parsed_or_error
                     continue
 
+                # 🟢 融合版保留：正確傳入 data_summary 給品質評估員
                 eval_result = await self._evaluate_quality(
                     client,
+                    data_summary,
                     analysis_text,
                     final_markdown
                 )
@@ -199,33 +200,36 @@ class OptimizationAgent(BaseAgent):
     async def _evaluate_quality(
         self,
         client,
+        data_summary: str,
         analysis_source: str,
         generated_content: str
     ) -> QualityEvaluation:
 
         eval_prompt = (
             "### 任務描述\n"
-            "你是一位嚴格的廣告成效稽核員。請對照「原始分析資料」評核「生成的建議」，並嚴格執行以下計分權重：\n\n"
-            
+            "你是一位嚴格的廣告成效稽核員。\n"
+            "請同時對照「原始數據摘要」與「分析內容」評核「生成的建議」。\n\n"
+
             "### 評分標準 (總分 100):\n"
-            "1. **事實忠實度 (50%)**: \n"
-            "   - 內容必須完全根據原始分析。每出現一個原始資料未提及的數據或虛構事實，扣 20 分。\n"
-            "   - 若關鍵事實錯誤，此項直接計 0 分。\n"
-            "2. **執行具體性 (30%)**: \n"
-            "   - 必須包含「目標對象、行動方案、預期成效」。缺一項扣 10 分。\n"
-            "3. **邏輯連貫性 (20%)**: \n"
-            "   - 建議是否能解決原始分析中提到的問題？邏輯鬆散或空洞扣 10-20 分。\n\n"
+            "1. **事實忠實度 (50%)**:\n"
+            "   - 建議中的數據或結論必須能在原始數據摘要或分析內容中找到依據。\n"
+            "   - 若出現原始資料未包含的數字或 campaign，視為幻覺。\n"
+            "2. **執行具體性 (30%)**:\n"
+            "   - 必須包含「目標對象、行動方案、預期成效」。\n"
+            "3. **邏輯連貫性 (20%)**:\n"
+            "   - 建議是否能回應分析中指出的問題？\n\n"
 
             "### 輸入內容\n"
-            f"[原始分析資料]: {analysis_source}\n"
-            f"[待評核建議]: {generated_content}\n\n"
+            f"[原始數據摘要]:\n{data_summary}\n\n"
+            f"[分析內容]:\n{analysis_source}\n\n"
+            f"[待評核建議]:\n{generated_content}\n\n"
 
             "### 輸出要求\n"
-            "請先在心中進行推理，最後僅回傳 JSON 格式：\n"
+            "僅回傳 JSON：\n"
             "{\n"
             "  \"score\": <int>,\n"
             "  \"breakdown\": {\"faithfulness\": int, \"concreteness\": int, \"logic\": int},\n"
-            "  \"critique\": \"<簡短精確的扣分原因>\",\n"
+            "  \"critique\": \"<簡短扣分原因>\",\n"
             "  \"hallucination_detected\": <bool>\n"
             "}"
         )
@@ -238,14 +242,12 @@ class OptimizationAgent(BaseAgent):
             )
 
             raw = res.get("output", "").strip()
-
             json_match = re.search(r"\{.*?\}", raw, re.DOTALL)
 
             if not json_match:
                 raise ValueError("無法解析 JSON")
 
             data = json.loads(json_match.group(0))
-
             score = int(data.get("score", 0))
 
             return QualityEvaluation(
@@ -262,48 +264,43 @@ class OptimizationAgent(BaseAgent):
             )
 
     def _parse_and_validate(self, text: str) -> Tuple[bool, Any]:
-            # 1. 切割區塊 (現在正確對齊函數內部)
-            blocks = re.split(r"(?:^|\n)\d+\.\s+", text)
-            blocks = [b.strip() for b in blocks if b.strip()]
+        blocks = re.split(r"(?:^|\n)\d+\.\s+", text)
+        blocks = [b.strip() for b in blocks if b.strip()]
 
-            if not (3 <= len(blocks) <= 5):
-                return False, "建議數量需為 3~5 點"
+        if not (3 <= len(blocks) <= 5):
+            return False, "建議數量需為 3~5 點"
 
-            items = []
+        items = []
 
-            for i, block in enumerate(blocks):
-                # 2. 清理換行，變成單行字串方便 Regex 搜尋
-                clean = block.replace("\n", " ")
+        for i, block in enumerate(blocks):
+            clean = block.replace("\n", " ")
 
-                # 3. 強健的 Regex 抓取
-                target = re.search(r"(?:\[|\*\*|^)?目標對象(?:\]|\*\*)?[:：]\s*(.*?)(?=\s*(?:\[|\*\*|^)?行動方案|$)", clean)
-                action = re.search(r"(?:\[|\*\*|^)?行動方案(?:\]|\*\*)?[:：]\s*(.*?)(?=\s*(?:\[|\*\*|^)?預期成效|$)", clean)
-                outcome = re.search(r"(?:\[|\*\*|^)?預期成效(?:\]|\*\*)?[:：]\s*(.*)", clean)
+            # 🟢 融合版保留：版本 1 的強健 Regex，避免 LLM 的 Markdown 干擾解析
+            target = re.search(r"(?:\[|\*\*|^)?目標對象(?:\]|\*\*)?[:：]\s*(.*?)(?=\s*(?:\[|\*\*|^)?行動方案|$)", clean)
+            action = re.search(r"(?:\[|\*\*|^)?行動方案(?:\]|\*\*)?[:：]\s*(.*?)(?=\s*(?:\[|\*\*|^)?預期成效|$)", clean)
+            outcome = re.search(r"(?:\[|\*\*|^)?預期成效(?:\]|\*\*)?[:：]\s*(.*)", clean)
 
-                # 4. 檢查是否抓取成功
-                if not (target and action and outcome):
-                    return False, f"第 {i+1} 點格式錯誤 (找不到關鍵字: 目標對象/行動方案/預期成效)"
+            if not (target and action and outcome):
+                return False, f"第 {i+1} 點格式錯誤 (找不到關鍵字: 目標對象/行動方案/預期成效)"
 
-                # 5. 建立 Pydantic 物件
-                try:
-                    items.append(
-                        OptimizationItem(
-                            target=target.group(1).strip(),
-                            action=action.group(1).strip(),
-                            outcome=outcome.group(1).strip()
-                        )
+            try:
+                items.append(
+                    OptimizationItem(
+                        target=target.group(1).strip(),
+                        action=action.group(1).strip(),
+                        outcome=outcome.group(1).strip()
                     )
-                except ValidationError as e:
-                    return False, f"第 {i+1} 點數據驗證失敗: {str(e)}"
+                )
+            except ValidationError as e:
+                return False, f"第 {i+1} 點數據驗證失敗: {str(e)}"
 
-            # 這裡的 return True 必須與 for 迴圈對齊，表示所有 block 都跑完才回傳
-            return True, items
-
+        return True, items
 
 
 # =========================
 # Orchestrator
 # =========================
+
 class AgentOrchestrator:
 
     def __init__(self):
@@ -320,7 +317,6 @@ class AgentOrchestrator:
 
         steps: List[AgentStepResult] = []
 
-        # 1. Data Agent
         data_result = await self.data_agent.run(
             task=task,
             date_start=date_start,
@@ -341,10 +337,9 @@ class AgentOrchestrator:
                 analysis_insights="",
                 optimization_suggestions="",
                 steps=steps,
-                verified=False  # 記得補上這行，保持一致性
+                verified=False
             )
 
-        # 2. Analysis Agent
         analysis_result = await self.analysis_agent.run(
             data_summary=data_result.get("summary")
         )
@@ -357,9 +352,10 @@ class AgentOrchestrator:
             )
         )
 
-        # 3. Optimization Agent
+        # 🟢 融合版保留：正確傳遞 data_summary 給 OptimizationAgent
         opt_result = await self.opt_agent.run(
-            analysis=analysis_result.get("analysis")
+            analysis=analysis_result.get("analysis"),
+            data_summary=data_result.get("summary") 
         )
 
         steps.append(
@@ -370,13 +366,11 @@ class AgentOrchestrator:
             )
         )
 
-        # 4. 回傳結果 (包含失敗與成功狀況)
         if not opt_result.get("verified"):
             return AgentRunResponse(
                 data_summary=data_result.get("summary"),
                 analysis_insights=analysis_result.get("analysis"),
                 optimization_suggestions="優化建議生成失敗",
-                # 即使失敗，也回傳評分細節
                 structured_suggestions=[],
                 quality_evaluation=opt_result.get("evaluation", {}),
                 verified=False,
@@ -387,13 +381,9 @@ class AgentOrchestrator:
             data_summary=data_result.get("summary"),
             analysis_insights=analysis_result.get("analysis"),
             optimization_suggestions=opt_result.get("suggestions"),
-            
-            # --- 新增欄位傳遞 ---
             structured_suggestions=opt_result.get("structured_data", []),
             quality_evaluation=opt_result.get("evaluation", {}),
             verified=True,
-            # ------------------
-            
             steps=steps,
         )
 
